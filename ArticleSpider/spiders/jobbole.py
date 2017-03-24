@@ -17,9 +17,12 @@ class JobboleSpider(scrapy.Spider):
         """
 
         # 解析列表中所有文章的url，并交给scrapy解析并下载
-        post = response.css("#archive .floated-thumb .post-thumb a::attr(href)").extract()
-        for post_url in post:
-            yield Request(url=parse.urljoin(response.url, post_url), callback=self.parse_detail)
+        post_nodes = response.css("#archive .floated-thumb .post-thumb a")
+
+        for post_node in post_nodes:
+            image_url = post_node.css("img::attr(src)").extract_first("")
+            post_url = post_node.css("::attr(href)").extract_first("")
+            yield Request(url=parse.urljoin(response.url, post_url), meta={"front_image_url":image_url}, callback=self.parse_detail)
 
 
         # 提取文章的具体字段
@@ -53,6 +56,7 @@ class JobboleSpider(scrapy.Spider):
 
 
         # 通过css选择器提取字段
+        front_image_url = response.meta.get("front_image_url","") # 文章封面图
         title = response.css(".entry-header h1::text").extract()[0]
         create_date = response.css(".entry-meta-hide-on-mobile::text").extract()[0].strip().replace("·","").strip()
         praise_nums = response.css("div.post-adds h10::text").extract()[0]
@@ -72,7 +76,7 @@ class JobboleSpider(scrapy.Spider):
         if match_re:
             comment_nums = int(match_re.group(1))
         else:
-            fav_nums = 0
+            comment_nums = 0
 
         content = response.css(".entry").extract()[0]
         tag_list = response.css("p.entry-meta-hide-on-mobile a::text").extract()
